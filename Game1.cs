@@ -11,6 +11,7 @@ namespace MonoGame3DTest
     private SpriteBatch _spriteBatch;
     private Texture2D _mapTexture;
     private Texture2D _carTexture;
+    private Texture2D _bgTexture;
 
     private Vector2 _carPosition = new Vector2(128,1800.0f);
     private float _carRotation = MathF.PI * 0.5f;
@@ -22,6 +23,8 @@ namespace MonoGame3DTest
     private float _cameraHeight = 50.0f;
     private float _cameraTargetHeight = 10.0f;
     private float _cameraFar = 300.0f;
+    private float _bgScale = 1.75f;
+    private float _bgScrollFactor = 120.0f;
 
     public Game1()
     {
@@ -46,6 +49,7 @@ namespace MonoGame3DTest
 
       _mapTexture = Texture2D.FromFile(_graphics.GraphicsDevice, "map.png");
       _carTexture = Texture2D.FromFile(_graphics.GraphicsDevice, "car.png");
+      _bgTexture = Texture2D.FromFile(_graphics.GraphicsDevice, "bg.png");
     }
 
     protected override void Update(GameTime gameTime)
@@ -91,6 +95,30 @@ namespace MonoGame3DTest
       RasterizerState rasterizerState = new RasterizerState();
       rasterizerState.CullMode = CullMode.None;
 
+      BasicEffect bgEffect = new BasicEffect(GraphicsDevice);
+
+      Vector2 bgSize = new Vector2(512, 64) * _bgScale;
+
+      float bgOffset = _carRotation * _bgScrollFactor;
+      while (bgOffset > bgSize.X) bgOffset -= bgSize.X;
+      while (bgOffset < -bgSize.X) bgOffset += bgSize.X;
+
+      _spriteBatch.Begin();
+      for (int i = -1; i <= 1; i++)
+      {
+        _spriteBatch.Draw(
+          _bgTexture,
+          new Vector2(bgOffset, 0) + new Vector2(bgSize.X, 0) * i,
+          null,
+          Color.White,
+          0,
+          Vector2.Zero,
+          _bgScale,
+          SpriteEffects.None,
+          0);
+      }
+      _spriteBatch.End();
+
       Vector3 cameraOffset = new Vector3((float)Math.Cos(_carRotation) * _cameraDistance, (float)Math.Sin(_carRotation) * _cameraDistance, _cameraHeight);
 
 
@@ -121,7 +149,7 @@ namespace MonoGame3DTest
       effect.World = lookAt;
 
       _spriteBatch.Begin(effect: effect, rasterizerState: rasterizerState);
-      _spriteBatch.Draw(_carTexture, Vector2.Zero, null, Color.White, 0, new Vector2(0.5f, 0.5f), 1.0f, SpriteEffects.None, 0);
+      _spriteBatch.Draw(_carTexture, Vector2.Zero, null, Color.White, 0, new Vector2(_carTexture.Width, _carTexture.Height)*0.5f, 1.0f, SpriteEffects.None, 0);
       _spriteBatch.End();
 
       base.Draw(gameTime);

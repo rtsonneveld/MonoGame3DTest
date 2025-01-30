@@ -135,7 +135,8 @@ namespace MonoGame3DTest
       Vector3 cameraPosition = new Vector3(_carPosition, 0) + cameraOffset - new Vector3(_carVelocity, 0) * 0.1f;
       Vector3 cameraTarget = new Vector3(_carPosition.X, _carPosition.Y, _cameraTargetHeight) - new Vector3(_carVelocity, 0) * 0.1f;
       Vector3 cameraUp = new Vector3(0, 0, 1); // Z axis up
-      effect.View = Matrix.CreateLookAt(cameraPosition, cameraTarget, new Vector3(0, 0, 1));
+      Matrix cameraView = Matrix.CreateLookAt(cameraPosition, cameraTarget, new Vector3(0, 0, 1));
+      effect.View = cameraView;
 
       effect.TextureEnabled = true;
 
@@ -143,16 +144,25 @@ namespace MonoGame3DTest
         _spriteBatch.Draw(_mapTexture, Vector2.Zero, Color.White);
       _spriteBatch.End();
 
-      Vector3 carPosition3D = new Vector3(_carPosition, 0);
-      Vector3 directionVector = Vector3.Normalize(carPosition3D - cameraPosition);
-      Matrix lookAt = Matrix.CreateScale(0.2f, -0.2f, 0.2f) * Matrix.CreateWorld(carPosition3D, directionVector, cameraUp);
-      effect.World = lookAt;
+      DrawCar(effect, new Vector3(_carPosition, 0), cameraView);
+      DrawCar(effect, new Vector3(_carPosition, 0) + new Vector3(30,30,0), cameraView);
+      DrawCar(effect, new Vector3(_carPosition, 0) + new Vector3(-30, -30, 0), cameraView);
+    }
+
+    private void DrawCar(BasicEffect effect, Vector3 position, Matrix cameraMatrix)
+    {
+
+      RasterizerState rasterizerState = new RasterizerState();
+      rasterizerState.CullMode = CullMode.None;
+
+      cameraMatrix.Decompose(out _, out Quaternion rotation, out _);
+      var rotationMatrix = Matrix.Invert(Matrix.CreateFromQuaternion(rotation));
+
+      effect.World = Matrix.CreateScale(0.2f, 0.2f, 0.2f) * rotationMatrix * Matrix.CreateTranslation(position);
 
       _spriteBatch.Begin(effect: effect, rasterizerState: rasterizerState);
-      _spriteBatch.Draw(_carTexture, Vector2.Zero, null, Color.White, 0, new Vector2(_carTexture.Width, _carTexture.Height)*0.5f, 1.0f, SpriteEffects.None, 0);
+      _spriteBatch.Draw(_carTexture, Vector2.Zero, null, Color.White, 0, new Vector2(_carTexture.Width, _carTexture.Height) * 0.5f, 1.0f, SpriteEffects.None, 0);
       _spriteBatch.End();
-
-      base.Draw(gameTime);
     }
   }
 }

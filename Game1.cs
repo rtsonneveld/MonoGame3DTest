@@ -22,9 +22,12 @@ namespace MonoGame3DTest
     private float _cameraDistance = 100.0f;
     private float _cameraHeight = 50.0f;
     private float _cameraTargetHeight = 10.0f;
-    private float _cameraFar = 300.0f;
+    private float _cameraFar = 3000.0f;
+    private float _cameraFov = MathF.PI / 4.0f;
     private float _bgScale = 1.75f;
     private float _bgScrollFactor = 120.0f;
+
+    public static DepthStencilState DS_DepthBufferEnabled = new DepthStencilState() { DepthBufferEnable = true, DepthBufferFunction = CompareFunction.LessEqual };
 
     public Game1()
     {
@@ -50,6 +53,7 @@ namespace MonoGame3DTest
       _mapTexture = Texture2D.FromFile(_graphics.GraphicsDevice, "map.png");
       _carTexture = Texture2D.FromFile(_graphics.GraphicsDevice, "car.png");
       _bgTexture = Texture2D.FromFile(_graphics.GraphicsDevice, "bg.png");
+      _graphics.GraphicsDevice.DepthStencilState = DS_DepthBufferEnabled;
     }
 
     protected override void Update(GameTime gameTime)
@@ -90,10 +94,13 @@ namespace MonoGame3DTest
 
     protected override void Draw(GameTime gameTime)
     {
+      _cameraFov = (MathF.PI / 4) + (MathF.Sin((float)gameTime.TotalGameTime.TotalSeconds))*0.3f;
+
       GraphicsDevice.Clear(Color.CornflowerBlue);
 
       RasterizerState rasterizerState = new RasterizerState();
       rasterizerState.CullMode = CullMode.None;
+      rasterizerState.DepthClipEnable = true;
 
       BasicEffect bgEffect = new BasicEffect(GraphicsDevice);
 
@@ -125,7 +132,7 @@ namespace MonoGame3DTest
       BasicEffect effect = new BasicEffect(GraphicsDevice);
       effect.World = Matrix.Identity;
       effect.Projection = Matrix.CreatePerspectiveFieldOfView(
-          MathHelper.PiOver4,                         // The field-of-view 
+          _cameraFov,                         // The field-of-view 
           GraphicsDevice.Viewport.AspectRatio,   // The aspect ratio
           0.1f, // The near plane distance 
           _cameraFar // The far plane distance
@@ -138,15 +145,18 @@ namespace MonoGame3DTest
       Matrix cameraView = Matrix.CreateLookAt(cameraPosition, cameraTarget, new Vector3(0, 0, 1));
       effect.View = cameraView;
 
+
       effect.TextureEnabled = true;
 
-      _spriteBatch.Begin(effect: effect, rasterizerState: rasterizerState);
+      _spriteBatch.Begin(effect: effect, rasterizerState: rasterizerState, depthStencilState: DS_DepthBufferEnabled);
         _spriteBatch.Draw(_mapTexture, Vector2.Zero, Color.White);
       _spriteBatch.End();
 
-      DrawCar(effect, new Vector3(_carPosition, 0), cameraView);
-      DrawCar(effect, new Vector3(_carPosition, 0) + new Vector3(30,30,0), cameraView);
-      DrawCar(effect, new Vector3(_carPosition, 0) + new Vector3(-30, -30, 0), cameraView);
+      DrawCar(effect, new Vector3(_carPosition, 6f), cameraView);
+
+      for (float x = 0; x < 2000; x += 500) {
+          DrawCar(effect, new Vector3(x , 32.0f, 6f), cameraView);
+      }
     }
 
     private void DrawCar(BasicEffect effect, Vector3 position, Matrix cameraMatrix)
@@ -154,14 +164,25 @@ namespace MonoGame3DTest
 
       RasterizerState rasterizerState = new RasterizerState();
       rasterizerState.CullMode = CullMode.None;
+      rasterizerState.DepthClipEnable = true;
 
       cameraMatrix.Decompose(out _, out Quaternion rotation, out _);
       var rotationMatrix = Matrix.Invert(Matrix.CreateFromQuaternion(rotation));
 
-      effect.World = Matrix.CreateScale(0.2f, 0.2f, 0.2f) * rotationMatrix * Matrix.CreateTranslation(position);
+      effect.World = Matrix.CreateScale(0.2f, -0.2f, 0.2f) * rotationMatrix * Matrix.CreateTranslation(position);
 
-      _spriteBatch.Begin(effect: effect, rasterizerState: rasterizerState);
-      _spriteBatch.Draw(_carTexture, Vector2.Zero, null, Color.White, 0, new Vector2(_carTexture.Width, _carTexture.Height) * 0.5f, 1.0f, SpriteEffects.None, 0);
+      _spriteBatch.Begin(effect: effect, rasterizerState: rasterizerState, depthStencilState: DS_DepthBufferEnabled);
+      _spriteBatch.Draw(_carTexture, Vector2.Zero, null, Color.Green, 0, new Vector2(_carTexture.Width, _carTexture.Height) * 0.5f, 1.0f, SpriteEffects.None, 0);
+      _spriteBatch.End();
+
+      Vector3 screenPos = GraphicsDevice.Viewport.Project(position, effect.Projection, effect.View, Matrix.Identity);
+      Vector3 screenPos2 = GraphicsDevice.Viewport.Project(position + new Vector3(0,0,1), effect.Projection, effect.View, Matrix.Identity);
+
+      // https://stackoverflow.com/questions/13350875/three-js-width-of-view/13351534#13351534
+      float scale = 0.18f * (new Vector2(screenPos.X, screenPos.Y) - new Vector2(screenPos2.X, screenPos2.Y)).Length();
+
+      _spriteBatch.Begin();
+      _spriteBatch.Draw(_carTexture, new Vector2(screenPos.X, screenPos.Y), null, Color.Red, 0, new Vector2(_carTexture.Width, _carTexture.Height) * 0.5f, scale, SpriteEffects.None, 0);
       _spriteBatch.End();
     }
   }
